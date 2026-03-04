@@ -9,6 +9,10 @@ export const advisoryService = {
         const response = await api.post('/advisory/goals', goalData);
         return response.data;
     },
+    updateGoal: async (id, goalData) => {
+        const response = await api.put(`/advisory/goals/${id}`, goalData);
+        return response.data;
+    },
     deleteGoal: async (id) => {
         const response = await api.delete(`/advisory/goals/${id}`);
         return response.data;

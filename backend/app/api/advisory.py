@@ -31,6 +31,25 @@ def get_goals(
 ):
     return db.query(Goal).filter(Goal.user_id == current_user.id).all()
 
+@router.put("/goals/{goal_id}", response_model=GoalResponse)
+def update_goal(
+    goal_id: int,
+    goal_in: GoalUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    goal = db.query(Goal).filter(Goal.id == goal_id, Goal.user_id == current_user.id).first()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    update_data = goal_in.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(goal, field, value)
+    
+    db.commit()
+    db.refresh(goal)
+    return goal
+
 @router.delete("/goals/{goal_id}")
 def delete_goal(
     goal_id: int,

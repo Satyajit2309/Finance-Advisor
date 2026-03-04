@@ -5,7 +5,7 @@ import { authService } from '../services/authService';
 import {
     Plus, Target, TrendingUp, Calendar,
     Trash2, ChevronRight, Loader2, Sparkles,
-    ArrowUpRight, AlertCircle, CheckCircle2
+    ArrowUpRight, AlertCircle, CheckCircle2, Edit2
 } from 'lucide-react';
 
 const Goals = () => {
@@ -20,6 +20,7 @@ const Goals = () => {
         target_date: '',
         category: 'Future'
     });
+    const [editingGoal, setEditingGoal] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -42,16 +43,32 @@ const Goals = () => {
         }
     };
 
-    const handleAddGoal = async (e) => {
+    const handleSaveGoal = async (e) => {
         e.preventDefault();
         try {
-            await advisoryService.createGoal(newGoal);
+            if (editingGoal) {
+                await advisoryService.updateGoal(editingGoal.id, newGoal);
+            } else {
+                await advisoryService.createGoal(newGoal);
+            }
             setShowModal(false);
+            setEditingGoal(null);
             setNewGoal({ name: '', target_amount: '', target_date: '', category: 'Future' });
             fetchData();
         } catch (err) {
-            alert('Failed to add goal');
+            alert('Failed to save goal');
         }
+    };
+
+    const openEditModal = (goal) => {
+        setEditingGoal(goal);
+        setNewGoal({
+            name: goal.name,
+            target_amount: goal.target_amount,
+            target_date: goal.target_date,
+            category: goal.category
+        });
+        setShowModal(true);
     };
 
     const handleDelete = async (id) => {
@@ -138,12 +155,20 @@ const Goals = () => {
                                                 <div className="text-2xl font-black text-accent leading-none mb-1">₹{rec?.suggested_sip.toLocaleString()}</div>
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suggested SIP</span>
                                             </div>
-                                            <button
-                                                onClick={() => handleDelete(goal.id)}
-                                                className="p-3 text-slate-300 hover:text-red-500 transition-colors"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openEditModal(goal)}
+                                                    className="p-3 text-slate-300 hover:text-accent transition-colors"
+                                                >
+                                                    <Edit2 className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(goal.id)}
+                                                    className="p-3 text-slate-300 hover:text-red-500 transition-colors"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -170,18 +195,18 @@ const Goals = () => {
                         )}
                     </div>
 
-                    {/* New Goal Modal */}
+                    {/* New/Edit Goal Modal */}
                     {showModal && (
                         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
                             <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in-95 duration-200">
                                 <div className="flex justify-between items-center mb-8">
-                                    <h2 className="text-2xl font-black text-slate-900">Define Strategy</h2>
-                                    <button onClick={() => setShowModal(false)} className="text-slate-400">
+                                    <h2 className="text-2xl font-black text-slate-900">{editingGoal ? 'Revise Strategy' : 'Define Strategy'}</h2>
+                                    <button onClick={() => { setShowModal(false); setEditingGoal(null); }} className="text-slate-400">
                                         <Plus className="rotate-45 w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleAddGoal} className="space-y-6">
+                                <form onSubmit={handleSaveGoal} className="space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Goal Name</label>
                                         <input
@@ -219,7 +244,7 @@ const Goals = () => {
                                     </div>
 
                                     <button type="submit" className="btn-accent w-full py-5 text-lg shadow-2xl mt-4">
-                                        Create Strategy
+                                        {editingGoal ? 'Update Strategy' : 'Create Strategy'}
                                     </button>
                                 </form>
                             </div>
