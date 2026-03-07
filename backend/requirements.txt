@@ -10,7 +10,9 @@ jose[cryptography]
 passlib[bcrypt]
 pandas
 numpy
-google-generativeai
+google-genai
+fastapi-mail
+kiteconnect
 langchain
 langchain-community
 faiss-cpu

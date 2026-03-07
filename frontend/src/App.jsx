@@ -8,6 +8,7 @@ import Investments from './pages/Investments';
 import Goals from './pages/Goals';
 import TaxPlanner from './pages/TaxPlanner';
 import Chatbot from './pages/Chatbot';
+import ZerodhaCallback from './pages/ZerodhaCallback';
 
 const PrivateRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token');
@@ -65,6 +66,14 @@ function App() {
           element={
             <PrivateRoute>
               <Chatbot />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/zerodha/callback"
+          element={
+            <PrivateRoute>
+              <ZerodhaCallback />
             </PrivateRoute>
           }
         />
