@@ -31,5 +31,17 @@ export const investmentService = {
             investment_type: investmentType
         });
         return response.data.recommendations;
+    },
+    getZerodhaLoginUrl: async () => {
+        const response = await api.get('/zerodha/login');
+        return response.data;
+    },
+    connectZerodha: async (requestToken) => {
+        const response = await api.post(`/zerodha/callback?request_token=${encodeURIComponent(requestToken)}`);
+        return response.data;
+    },
+    syncZerodhaPortfolio: async () => {
+        const response = await api.post('/zerodha/sync-portfolio');
+        return response.data;
     }
 };

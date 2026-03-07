@@ -24,10 +24,7 @@ const Investments = () => {
     const [showModal, setShowModal] = useState(false);
     const [showBrokerModal, setShowBrokerModal] = useState(false);
     const [brokerConfig, setBrokerConfig] = useState(null);
-    const [brokerForm, setBrokerForm] = useState({
-        api_key: '',
-        api_secret: ''
-    });
+    const [isConnectingZerodha, setIsConnectingZerodha] = useState(false);
     const [newInvestment, setNewInvestment] = useState({
         name: '',
         type: 'Stock',
@@ -44,6 +41,9 @@ const Investments = () => {
     const [aiInvestmentType, setAiInvestmentType] = useState('Stock');
     const [aiRecommendations, setAiRecommendations] = useState('');
     const [isAILoading, setIsAILoading] = useState(false);
+    
+    // Portfolio Sync State
+    const [isSyncing, setIsSyncing] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -59,10 +59,6 @@ const Investments = () => {
             ]);
             setInvestments(invData);
             setBrokerConfig(brokerData);
-            setBrokerForm({
-                api_key: brokerData.api_key || '',
-                api_secret: brokerData.api_secret || ''
-            });
             setProfile(profileData);
             setGoals(goalsData);
         } catch (err) {
@@ -92,18 +88,21 @@ const Investments = () => {
         }
     };
 
-    const handleBrokerUpdate = async (e) => {
+    const handleZerodhaConnect = async (e) => {
         e.preventDefault();
+        setIsConnectingZerodha(true);
         try {
-            await investmentService.updateBrokerConfig({
-                ...brokerForm,
-                is_active: true
-            });
-            setShowBrokerModal(false);
-            fetchData();
-            alert('Zerodha integration updated. Portfolio sync will begin shortly.');
+            const data = await investmentService.getZerodhaLoginUrl();
+            if (data && data.login_url) {
+                window.location.href = data.login_url; // Redirect to Zerodha
+            } else {
+                alert('Failed to get login URL');
+                setIsConnectingZerodha(false);
+            }
         } catch (err) {
-            alert('Failed to update broker config');
+            console.error('Error getting login URL', err);
+            alert('Failed to connect to Zerodha. Check your backend configuration.');
+            setIsConnectingZerodha(false);
         }
     };
 
@@ -129,6 +128,20 @@ const Investments = () => {
             console.error('AI error:', err);
         } finally {
             setIsAILoading(false);
+        }
+    };
+
+    const handleSyncPortfolio = async () => {
+        setIsSyncing(true);
+        try {
+            const data = await investmentService.syncZerodhaPortfolio();
+            alert(`${data.message}\nSynced: ${data.synced_investments}\nNew: ${data.new_investments}`);
+            await fetchData(); // Refresh the investments list
+        } catch (err) {
+            console.error('Error syncing portfolio:', err);
+            alert('Failed to sync portfolio. Make sure your session is still active.');
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -207,13 +220,35 @@ const Investments = () => {
                                 <div className="text-xl font-bold">{brokerConfig?.is_active ? 'Zerodha Connected' : 'Broker Disconnected'}</div>
                                 <p className="text-slate-400 text-xs mt-1">Live portfolio synchronization active.</p>
                             </div>
-                            <button
-                                onClick={() => setShowBrokerModal(true)}
-                                className="relative z-10 flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-lg transition-all mt-4"
-                            >
-                                {brokerConfig?.is_active ? 'Manage Connection' : 'Connect Zerodha'}
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
+                            
+                            {brokerConfig?.is_active ? (
+                                <button
+                                    onClick={handleSyncPortfolio}
+                                    disabled={isSyncing}
+                                    className="relative z-10 flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-400 text-slate-900 w-fit px-4 py-2 rounded-lg transition-all mt-4 shadow-lg disabled:opacity-50"
+                                >
+                                    {isSyncing ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Syncing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="w-4 h-4" />
+                                            Sync Portfolio
+                                        </>
+                                    )}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowBrokerModal(true)}
+                                    className="relative z-10 flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 w-fit px-4 py-2 rounded-lg transition-all mt-4"
+                                >
+                                    Connect Zerodha
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            )}
+                            
                             <div className="absolute top-0 right-0 w-32 h-32 bg-accent/20 rounded-full blur-3xl -mr-10 -mt-10" />
                         </div>
 
@@ -530,46 +565,36 @@ const Investments = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleBrokerUpdate} className="space-y-6">
+                        <div className="space-y-6">
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3">
-                                <ShieldCheck className="w-5 h-5 text-accent mt-0.5" />
+                                <ShieldCheck className="w-5 h-5 text-accent mt-0.5 min-w-[20px]" />
                                 <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                    Your API credentials are 256-bit encrypted. We only use them to fetch portfolio and holdings data once a day.
+                                    You will be securely redirected to Kite Connect. Finance Advisor does not store your Zerodha password. We only use your generated access token to fetch holdings and positions via the official API.
                                 </p>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">API Key</label>
-                                <input
-                                    required
-                                    type="text"
-                                    className="input-premium"
-                                    placeholder="Enter your Kite API Key"
-                                    value={brokerForm.api_key}
-                                    onChange={(e) => setBrokerForm({ ...brokerForm, api_key: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">API Secret</label>
-                                <input
-                                    required
-                                    type="password"
-                                    className="input-premium"
-                                    placeholder="Enter your Kite API Secret"
-                                    value={brokerForm.api_secret}
-                                    onChange={(e) => setBrokerForm({ ...brokerForm, api_secret: e.target.value })}
-                                />
-                            </div>
-
-                            <button type="submit" className="btn-accent w-full py-5 text-lg shadow-2xl mt-4">
-                                Authorize & Connect
+                            <button
+                                onClick={handleZerodhaConnect}
+                                disabled={isConnectingZerodha}
+                                className="btn-accent w-full py-5 text-lg shadow-2xl mt-4 flex justify-center items-center gap-2 disabled:opacity-70"
+                            >
+                                {isConnectingZerodha ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Redirecting to Kite...
+                                    </>
+                                ) : (
+                                    <>
+                                        Login with Zerodha
+                                        <ExternalLink className="w-5 h-5" />
+                                    </>
+                                )}
                             </button>
 
                             <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                Don't have an API key? <a href="https://kite.trade" target="_blank" className="text-accent underline">Kite Trade</a>
+                                Ensure your Kite Connect Redirect URL is set to <span className="text-slate-600 lowercase font-mono">http://localhost:5173/zerodha/callback</span>
                             </p>
-                        </form>
+                        </div>
                     </div>
                 </div>
             )}
