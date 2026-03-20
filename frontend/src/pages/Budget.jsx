@@ -1,17 +1,4 @@
-/**
- * Budget Page
- * ============
- * Personalized Budget Generation page.
- * Users can generate AI-powered budget plans, view allocation breakdowns,
- * read AI explanations, and browse their budget history.
- * 
- * Styling matches the existing premium design system:
- * - White/slate background, emerald accent (#10B981)
- * - premium-card, input-premium, btn-accent component classes
- * - Inter font, rounded corners, subtle shadows
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { budgetService } from '../services/budgetService';
 import { authService } from '../services/authService';
@@ -20,9 +7,11 @@ import {
     TrendingUp, ShieldCheck, Banknote, CreditCard,
     ChevronDown, ChevronUp, Clock, ArrowUpRight,
     LayoutDashboard, Target, Briefcase, Settings,
-    Shield, LogOut, RefreshCw, MapPin
+    Shield, LogOut, RefreshCw, MapPin, Download
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const Budget = () => {
     // ─── State Management ───────────────────────────────────
@@ -33,6 +22,7 @@ const Budget = () => {
     const [generating, setGenerating] = useState(false);    // Budget generation in progress
     const [showHistory, setShowHistory] = useState(false);  // Toggle history section
     const [error, setError] = useState('');                 // Error messages
+    const budgetRef = useRef();
 
     // Form overrides (optional — user can tweak before generating)
     const [formData, setFormData] = useState({
@@ -110,6 +100,18 @@ const Budget = () => {
         }
     };
 
+    const downloadPDF = async () => {
+        const element = budgetRef.current;
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Budget_Report_${new Date().toLocaleDateString()}.pdf`);
+    };
+
     // ─── Loading State ──────────────────────────────────────
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
@@ -175,7 +177,7 @@ const Budget = () => {
 
             {/* ─── Main Content ────────────────────────────────── */}
             <main className="flex-1 lg:ml-72 p-6 lg:p-12">
-                <div className="max-w-5xl mx-auto space-y-10">
+                <div ref={budgetRef} className="max-w-5xl mx-auto space-y-10 pb-12">
 
                     {/* Header */}
                     <header className="flex items-center justify-between">
@@ -195,6 +197,15 @@ const Budget = () => {
                             <h1 className="text-4xl font-black text-slate-900 leading-tight">Budget Planner</h1>
                             <p className="text-slate-500 font-medium">Generate your personalized monthly budget with AI.</p>
                         </div>
+                        {budget && (
+                            <button
+                                onClick={downloadPDF}
+                                className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-slate-600"
+                            >
+                                <Download className="w-4 h-4" />
+                                Export
+                            </button>
+                        )}
                     </header>
 
                     {/* Error Display */}
@@ -386,23 +397,6 @@ const Budget = () => {
                                     </p>
                                 </div>
                             </div>
-
-                            {/* Visual Breakdown Bar */}
-                            <div className="premium-card p-6 bg-white">
-                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Allocation Breakdown</h4>
-                                <div className="flex h-4 rounded-full overflow-hidden gap-0.5">
-                                    <div className="bg-blue-500 rounded-l-full transition-all duration-700" style={{ width: `${budget.needs_pct}%` }} title={`Needs: ${budget.needs_pct}%`} />
-                                    <div className="bg-purple-500 transition-all duration-700" style={{ width: `${budget.wants_pct}%` }} title={`Wants: ${budget.wants_pct}%`} />
-                                    <div className="bg-emerald-500 transition-all duration-700" style={{ width: `${budget.savings_pct}%` }} title={`Savings: ${budget.savings_pct}%`} />
-                                    <div className="bg-amber-500 rounded-r-full transition-all duration-700" style={{ width: `${budget.investments_pct}%` }} title={`Investments: ${budget.investments_pct}%`} />
-                                </div>
-                                <div className="flex justify-between mt-3 text-[10px] font-black uppercase tracking-widest">
-                                    <span className="text-blue-600">Needs {budget.needs_pct}%</span>
-                                    <span className="text-purple-600">Wants {budget.wants_pct}%</span>
-                                    <span className="text-emerald-600">Savings {budget.savings_pct}%</span>
-                                    <span className="text-amber-600">Invest {budget.investments_pct}%</span>
-                                </div>
-                            </div>
                         </div>
                     )}
 
@@ -463,20 +457,6 @@ const Budget = () => {
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    )}
-
-                    {/* Empty State — no budget generated yet */}
-                    {!budget && !generating && (
-                        <div className="premium-card p-16 bg-white text-center">
-                            <div className="inline-flex p-4 bg-accent/10 rounded-2xl mb-6">
-                                <PieChart className="w-10 h-10 text-accent" />
-                            </div>
-                            <h3 className="text-2xl font-black text-slate-900 mb-2">No Budget Yet</h3>
-                            <p className="text-slate-500 font-medium max-w-md mx-auto">
-                                Fill in your financial details above and click <span className="text-accent font-bold">Generate Budget</span> to
-                                get your personalized AI-powered budget plan.
-                            </p>
                         </div>
                     )}
                 </div>

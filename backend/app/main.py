@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import auth, budget, investments, advisory, tax, chatbot, zerodha
+from .api import auth, budget, investments, advisory, tax, chatbot, zerodha, market
 from .models import budget as budget_model, user as user_model  # Ensures tables are created
 from .db.session import create_tables
 
@@ -25,6 +25,7 @@ app.include_router(advisory.router, prefix="/advisory", tags=["Advisory"])
 app.include_router(tax.router, prefix="/tax", tags=["Tax"])
 app.include_router(chatbot.router, prefix="/chatbot", tags=["Chatbot"])
 app.include_router(zerodha.router, prefix="/zerodha", tags=["Zerodha"])
+app.include_router(market.router, prefix="/market", tags=["Market"])
 
 @app.get("/")
 async def root():

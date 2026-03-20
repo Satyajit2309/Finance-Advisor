@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { taxService } from '../services/advisoryService';
 import { authService } from '../services/authService';
 import Sidebar from '../components/Sidebar';
 import {
     Calculator, Shield, TrendingUp, AlertCircle,
     ChevronRight, ArrowRight, Loader2, Info,
-    CheckCircle2, Landmark, PieChart
+    CheckCircle2, Landmark, PieChart, Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const TaxPlanner = () => {
     const [data, setData] = useState(null);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showSavingsInfo, setShowSavingsInfo] = useState(false);
+    const taxRef = useRef();
 
     useEffect(() => {
         fetchData();
@@ -42,6 +45,18 @@ const TaxPlanner = () => {
         }
     };
 
+    const downloadPDF = async () => {
+        const element = taxRef.current;
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save('Tax_Optimizer_Report.pdf');
+    };
+
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
             <Loader2 className="w-10 h-10 text-accent animate-spin" />
@@ -59,18 +74,27 @@ const TaxPlanner = () => {
         <div className="min-h-screen bg-slate-50 flex">
             <Sidebar savingsRate={savingsRate} />
             <div className="flex-1 lg:ml-72 p-6 lg:p-12">
-                <div className="max-w-6xl mx-auto space-y-10">
+                <div ref={taxRef} className="max-w-6xl mx-auto space-y-10 pb-12">
 
                     <header className="flex justify-between items-start">
                         <div>
                             <h1 className="text-4xl font-black text-slate-900 leading-tight">Tax Optimizer</h1>
                             <p className="text-slate-500 font-medium">Indian Income Tax planning & liability reduction.</p>
                         </div>
-                        <div className={`px-4 py-2 rounded-2xl flex items-center gap-2 border ${isOptimized ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
-                            {isOptimized ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span className="text-xs font-black uppercase tracking-widest">
-                                {isOptimized ? 'Optimized' : 'Action Required'}
-                            </span>
+                        <div className="flex flex-col items-end gap-3">
+                            <div className={`px-4 py-2 rounded-2xl flex items-center gap-2 border ${isOptimized ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
+                                {isOptimized ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                                <span className="text-xs font-black uppercase tracking-widest">
+                                    {isOptimized ? 'Optimized' : 'Action Required'}
+                                </span>
+                            </div>
+                            <button
+                                onClick={downloadPDF}
+                                className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 font-black text-[10px] uppercase tracking-widest text-slate-600"
+                            >
+                                <Download className="w-4 h-4" />
+                                Export
+                            </button>
                         </div>
                     </header>
 
@@ -164,8 +188,11 @@ const TaxPlanner = () => {
                                                 ? "Based on your income, the New Regime is more tax-efficient even without deductions."
                                                 : "By utilizing Section 80C and 80D, you can save significant tax in the Old Regime."}
                                         </p>
-                                        <button className="flex items-center gap-2 text-accent font-black uppercase text-xs tracking-widest hover:translate-x-2 transition-transform">
-                                            Download Tax Report
+                                        <button
+                                            onClick={downloadPDF}
+                                            className="flex items-center gap-2 text-accent font-black uppercase text-xs tracking-widest hover:translate-x-2 transition-transform"
+                                        >
+                                            Generate Full Report
                                             <ArrowRight className="w-4 h-4" />
                                         </button>
                                     </div>
